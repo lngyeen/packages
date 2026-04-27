@@ -234,10 +234,26 @@ class GoogleMapController {
   DebugSetOptionsFunction? _overrideSetOptions;
 
   gmaps.Map _createMap(web.HTMLElement div, gmaps.MapOptions options) {
+    // Temporarily attach div to document.body so Maps JS API can call
+    // IntersectionObserver.observe() on a live DOM element.
+    // Without this, the map fails with "Permission Denied" when rendered
+    // inside a Flutter CanvasKit HtmlElementView (element is detached at init time).
+    final bool wasDetached = div.parentElement == null;
+    if (wasDetached) {
+      div.style.position = 'absolute';
+      div.style.visibility = 'hidden';
+      web.document.body!.appendChild(div);
+    }
     if (_overrideCreateMap != null) {
       return _overrideCreateMap!(div, options);
     }
-    return gmaps.Map(div, options);
+    final gmaps.Map map = gmaps.Map(div, options);
+    if (wasDetached) {
+      div.remove();
+      div.style.position = '';
+      div.style.visibility = '';
+    }
+    return map;
   }
 
   /// A flag that returns true if the controller has been initialized or not.
